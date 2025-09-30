@@ -3,6 +3,7 @@ class MemoryPool{
     public:
         MemoryPool(int Unit,int Init=256,int Grow=1024);
         ~MemoryPool();
+        void* Allocate(int Init);
         void* Allocate();
         void Free(void* pFree);
     private:
@@ -11,7 +12,7 @@ class MemoryPool{
         int Growsize;
         MemoryPage* pBlock;
 };
-MemoryPool::MemoryPool(int Unit=4,int Init,int Grow):
+MemoryPool::MemoryPool(int Unit,int Init,int Grow):
     Unitsize(Unit),
     Initsize(Init),
     Growsize(Grow),
@@ -37,30 +38,56 @@ void* MemoryPool::Allocate(){
     while(!tmp->nFree)tmp=tmp->pNext;
     if(tmp==NULL){
         if(Growsize==0)return NULL;
-        tmp->pNext=(MemoryPage*)new(Unitsize,Growsize) MemoryPage(Unitsize,Growsize);
-        tmp=tmp->pNext;
+        tmp=(MemoryPage*)new(Unitsize,Growsize) MemoryPage(Unitsize,Growsize);
         return (void*)tmp->aData;
     }tmp->nFree--;
     char* ptmp=tmp->aData+tmp->nFirst*Unitsize;
     tmp->nFirst=*ptmp;
     return (void*)ptmp;
-}void MemoryPool::Free(void* pFree){
+}void* MemoryPool::Allocate(int Init){
+    if(pBlock==NULL){
+        pBlock=(MemoryPage*)new(Unitsize,Init) MemoryPage(Unitsize,Init);
+        //cout<<pBlock->nSize<<endl;
+        //cout<<pBlock->nFree<<endl;
+        //cout<<pBlock->nFirst<<endl;
+        pBlock->nFree=0;
+        pBlock->nFirst=*(pBlock->aData+pBlock->nFirst*Unitsize+Init*Unitsize);
+        return pBlock->aData;
+    }MemoryPage* tmp=pBlock,*pre=NULL;
+    while(tmp!=NULL&&tmp->nFree<Init)pre=tmp,tmp=tmp->pNext;//,cout<<tmp->nFree<<endl;
+    if(tmp==NULL){
+        if(Growsize==0)return NULL;
+        tmp=(MemoryPage*)new(Unitsize,Init) MemoryPage(Unitsize,Init);
+        tmp->nFree=Init;
+        tmp->nFirst=*(tmp->aData+tmp->nFirst*Unitsize+Init*Unitsize);
+        pre->pNext=tmp;
+        return (void*)tmp->aData;
+    }tmp->nFree-=Init;
+    //cout<<Init<<' '<<tmp->nFree<<endl;
+    int ptmp=tmp->nFirst;
+    //cout<<tmp->nFree<<endl;
+    tmp->nFirst=*(tmp->aData+tmp->nFirst*Unitsize+Init*Unitsize);
+    return (void*)(tmp->aData+ptmp*Unitsize);
+}
+void MemoryPool::Free(void* pFree){
     MemoryPage* ptmp=pBlock;
     MemoryPage* pre=NULL;
     while(ptmp!=NULL&&(ptmp->aData>pFree||ptmp->aData+ptmp->nSize<pFree)){
+        //cout<<ptmp<<endl;
         pre=ptmp;
         ptmp=ptmp->pNext;
     }if(ptmp==NULL){
-        throw "404";
-        return;
+        throw std::runtime_error("Memory block not found (404)");
     }*(int*)pFree=ptmp->nFirst;
     ptmp->nFirst=((char*)pFree-ptmp->aData)/Unitsize;
     ptmp->nFree++;
+    //cout<<ptmp->nFree<<' '<<ptmp->nSize/Unitsize<<endl;
     if(ptmp->nFree==ptmp->nSize/Unitsize){
         if(pre==NULL)pBlock=ptmp->pNext;
         else pre->pNext=ptmp->pNext;
         delete ptmp;
     }else{
+        if(pre==NULL||pre->aData>pFree)return;
         pre->pNext=ptmp->pNext;
         ptmp->pNext=pBlock->pNext;
         pBlock=ptmp;

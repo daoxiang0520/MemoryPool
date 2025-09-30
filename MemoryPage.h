@@ -10,7 +10,6 @@ class MemoryPage{
         int nFree;
         int nFirst;
         void* operator new(size_t,int Unitsize,int Unitnum);
-        void operator delete(void*,int Unitsize,int Unitnum){};
         void operator delete(void* pBlock);
         MemoryPage(int Unitsize,int Unitnum);
         ~MemoryPage(){};
@@ -26,7 +25,7 @@ MemoryPage::MemoryPage(int Unitsize,int Unitnum):
         {
             char* pData=aData;
             for(int i=1;i<Unitnum-1;i++){
-                *pData=i;
+                *(unsigned short*)pData=i;
                 pData+=Unitsize;
             }
         };
