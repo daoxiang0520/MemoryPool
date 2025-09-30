@@ -12,6 +12,9 @@
 ## void* Allocate()
 返回一个与构造函数对应的可用的指针
 
+## void* Allocate(int Init)
+返回一个与构造函数对应的可用的指针，并且包含连续Init个neicun
+
 ## void Free(void* pFree)
 **pFree:指定的指针位置**
 释放指定的内存
